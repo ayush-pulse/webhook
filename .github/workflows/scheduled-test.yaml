@@ -1,25 +1,104 @@
-name: Scheduled Integration Tests
+# name: Scheduled Integration Tests
+
+# on:
+#   schedule:
+#     # Runs every day at 9:55 AM IST (04:25 AM UTC).
+#     - cron: '22 4 * * *'
+#   workflow_dispatch: # Allows manual triggering of the workflow
+
+# jobs:
+#   run_and_report_tests:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Trigger Integration Tests
+#         id: trigger_tests # Step ID to reference its outputs
+#         run: |
+#           # Make the API request to your testing backend.
+#           # The -s flag is added to silence curl's progress meter.
+#           # IMPORTANT: The hardcoded Bearer token has been replaced. Use a GitHub secret for security.
+#           API_RESPONSE=$(curl -s -X GET \
+#             "https://api.stage.pulselabs.ai/interviews/entity/87/details" \
+#             -H "Connection: keep-alive" \
+#             -H "project-id: 153" \
+#             -H "workspace-id: 76" \
+#             -H "project-role: Reseacher" \
+#             -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InQyMF93dGFCLTMyeDNkc05makx3TSJ9.eyJpc3MiOiJodHRwczovL3BhbmVsaXN0cy1kZXYudXMuYXV0aDAuY29tLyIsInN1YiI6ImVtYWlsfDY4NTEwY2U1NTRhZGM3NzI1Y2FhODAxYSIsImF1ZCI6WyJwYW5lbGlzdHMtZGV2IiwiaHR0cHM6Ly9wYW5lbGlzdHMtZGV2LnVzLmF1dGgwLmNvbS91c2VyaW5mbyJdLCJpYXQiOjE3NTAyNDMzMjMsImV4cCI6MTc1MDMyOTcyMywic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBlbWFpbCIsImF6cCI6IlZXUFNCcmZ0bUgxV1FJZE9lWWJuQjZrTzd5c2x1VWM0In0.A8Zkd2dPO6vr8Df3pvz8Kuo0KffgWRy7B6DOCJRUXvDZabtJYTUKkCxsJSCGnrpEaD2LhnXvNNwrZF8d0fLJYuf8JkdsZatZiOSdr1xwzbZ9HJGYJ22uwYtxO0FoOEHGIOgTYQQDVeBDDqBMKkm0BdLizORhi3a2WgJGdWXXO1GbtoRtT_dsLgkT8Vu4t_-k7Dcydw4N0sRNkOi5Ugc_4FTLjxpP4CV-rtkQnPSaVrC4IN0Z56Mo9goAJi_V0Pim4oUsTkaikBqmZe3h2JJpQTxTPR_YQRWMHkNrb4qf6JIEuHEiWg0DORLFXwvyoSsXabDU_2dXl-XyRn1nMdj-0ug")
+
+#           echo "--- Full API Response ---"
+#           echo "$API_RESPONSE"
+#           echo "-------------------------"
+
+#           # To pass a multi-line string (like a JSON response) to another step,
+#           # we use a special syntax with a delimiter (here, 'EOF').
+#           echo "API_RESPONSE<<EOF" >> $GITHUB_OUTPUT
+#           echo "$API_RESPONSE" >> $GITHUB_OUTPUT
+#           echo "EOF" >> $GITHUB_OUTPUT
+
+#           # Parse the response to get specific fields for status and reporting.
+#           # Using -e flag to prevent errors if a field is null or missing.
+#           TEST_STATUS=$(echo "$API_RESPONSE" | jq -e -r '.status' || echo 'unknown')
+#           REPORT_URL=$(echo "$API_RESPONSE" | jq -e -r '.reportUrl' || echo 'not available')
+
+#           # Output specific fields for individual use (e.g., color coding)
+#           echo "TEST_STATUS=$TEST_STATUS" >> $GITHUB_OUTPUT
+#           echo "REPORT_URL=$REPORT_URL" >> $GITHUB_OUTPUT
+#         env:
+#           # Define environment secrets for your curl command
+#           API_AUTH_TOKEN: ${{ secrets.API_AUTH_TOKEN }}
+
+#       - name: Send Slack Notification
+#         uses: rtCamp/action-slack-notify@v2
+#         # This step will always run, even if the test trigger step fails.
+#         if: always()
+#         env:
+#           # Set the Slack Webhook URL as a secret in your repository settings
+#           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+#           SLACK_CHANNEL: 'all-test-webhook'
+#           SLACK_USERNAME: 'Integration Test Reporter'
+#           SLACK_ICON: 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png'
+#           SLACK_TITLE: 'Integration Test Run Report'
+#           # Updated SLACK_MESSAGE to include the entire response body
+#           SLACK_MESSAGE: |
+#             *Integration Test Run Completed!*
+#             Workflow Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>
+
+#             *Full API Response Body:*
+#             ```json
+#             ${{ steps.trigger_tests.outputs.API_RESPONSE }}
+#             ```
+#           # Dynamically set the color of the Slack message based on the test status
+#           SLACK_COLOR: >
+#             ${{
+#               (steps.trigger_tests.outputs.TEST_STATUS == 'success' && 'good') ||
+#               (steps.trigger_tests.outputs.TEST_STATUS == 'failed' && 'danger') ||
+#               'warning'
+#             }}
+
+name: Scheduled API Response Notification
 
 on:
   schedule:
     # Runs every day at 9:55 AM IST (04:25 AM UTC).
-    - cron: '22 4 * * *'
+    - cron: '25 4 * * *'
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
-  run_and_report_tests:
+  run_and_report:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Trigger Integration Tests
-        id: trigger_tests # Step ID to reference its outputs
+      - name: Trigger API and Capture Response
+        id: trigger_api
         run: |
-          # Make the API request to your testing backend.
-          # The -s flag is added to silence curl's progress meter.
-          # IMPORTANT: The hardcoded Bearer token has been replaced. Use a GitHub secret for security.
+          # Make the API request and store the full response.
+          # The Authorization token is hardcoded as requested for testing.
           API_RESPONSE=$(curl -s -X GET \
             "https://api.stage.pulselabs.ai/interviews/entity/87/details" \
             -H "Connection: keep-alive" \
@@ -28,52 +107,26 @@ jobs:
             -H "project-role: Reseacher" \
             -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InQyMF93dGFCLTMyeDNkc05makx3TSJ9.eyJpc3MiOiJodHRwczovL3BhbmVsaXN0cy1kZXYudXMuYXV0aDAuY29tLyIsInN1YiI6ImVtYWlsfDY4NTEwY2U1NTRhZGM3NzI1Y2FhODAxYSIsImF1ZCI6WyJwYW5lbGlzdHMtZGV2IiwiaHR0cHM6Ly9wYW5lbGlzdHMtZGV2LnVzLmF1dGgwLmNvbS91c2VyaW5mbyJdLCJpYXQiOjE3NTAyNDMzMjMsImV4cCI6MTc1MDMyOTcyMywic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBlbWFpbCIsImF6cCI6IlZXUFNCcmZ0bUgxV1FJZE9lWWJuQjZrTzd5c2x1VWM0In0.A8Zkd2dPO6vr8Df3pvz8Kuo0KffgWRy7B6DOCJRUXvDZabtJYTUKkCxsJSCGnrpEaD2LhnXvNNwrZF8d0fLJYuf8JkdsZatZiOSdr1xwzbZ9HJGYJ22uwYtxO0FoOEHGIOgTYQQDVeBDDqBMKkm0BdLizORhi3a2WgJGdWXXO1GbtoRtT_dsLgkT8Vu4t_-k7Dcydw4N0sRNkOi5Ugc_4FTLjxpP4CV-rtkQnPSaVrC4IN0Z56Mo9goAJi_V0Pim4oUsTkaikBqmZe3h2JJpQTxTPR_YQRWMHkNrb4qf6JIEuHEiWg0DORLFXwvyoSsXabDU_2dXl-XyRn1nMdj-0ug")
 
-          echo "--- Full API Response ---"
-          echo "$API_RESPONSE"
-          echo "-------------------------"
-
-          # To pass a multi-line string (like a JSON response) to another step,
-          # we use a special syntax with a delimiter (here, 'EOF').
+          # Output the entire multi-line response for the next step.
           echo "API_RESPONSE<<EOF" >> $GITHUB_OUTPUT
           echo "$API_RESPONSE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-          # Parse the response to get specific fields for status and reporting.
-          # Using -e flag to prevent errors if a field is null or missing.
-          TEST_STATUS=$(echo "$API_RESPONSE" | jq -e -r '.status' || echo 'unknown')
-          REPORT_URL=$(echo "$API_RESPONSE" | jq -e -r '.reportUrl' || echo 'not available')
-
-          # Output specific fields for individual use (e.g., color coding)
-          echo "TEST_STATUS=$TEST_STATUS" >> $GITHUB_OUTPUT
-          echo "REPORT_URL=$REPORT_URL" >> $GITHUB_OUTPUT
-        env:
-          # Define environment secrets for your curl command
-          API_AUTH_TOKEN: ${{ secrets.API_AUTH_TOKEN }}
-
-      - name: Send Slack Notification
+      - name: Send API Response to Slack
         uses: rtCamp/action-slack-notify@v2
-        # This step will always run, even if the test trigger step fails.
+        # This step will always run, even if the API call fails.
         if: always()
         env:
-          # Set the Slack Webhook URL as a secret in your repository settings
+          # You still need to set the SLACK_WEBHOOK_URL in your repository secrets.
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_CHANNEL: 'all-test-webhook'
-          SLACK_USERNAME: 'Integration Test Reporter'
+          SLACK_USERNAME: 'API Response Reporter'
           SLACK_ICON: 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png'
-          SLACK_TITLE: 'Integration Test Run Report'
-          # Updated SLACK_MESSAGE to include the entire response body
+          SLACK_TITLE: 'Scheduled API Response'
           SLACK_MESSAGE: |
-            *Integration Test Run Completed!*
-            Workflow Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>
-
             *Full API Response Body:*
             ```json
-            ${{ steps.trigger_tests.outputs.API_RESPONSE }}
+            ${{ steps.trigger_api.outputs.API_RESPONSE }}
             ```
-          # Dynamically set the color of the Slack message based on the test status
-          SLACK_COLOR: >
-            ${{
-              (steps.trigger_tests.outputs.TEST_STATUS == 'success' && 'good') ||
-              (steps.trigger_tests.outputs.TEST_STATUS == 'failed' && 'danger') ||
-              'warning'
-            }}
+          # Using a neutral color since we are no longer tracking success/fail status.
+          SLACK_COLOR: '#CCCCCC'
