@@ -64,8 +64,6 @@ jobs:
           # Updated SLACK_MESSAGE to include the entire response body
           SLACK_MESSAGE: |
             *Integration Test Run Completed!*
-            Status: `${{ steps.trigger_tests.outputs.TEST_STATUS }}`
-            Report: <${{ steps.trigger_tests.outputs.REPORT_URL }}|View Report>
             Workflow Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>
 
             *Full API Response Body:*
