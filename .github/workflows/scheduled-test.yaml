@@ -1,3 +1,79 @@
+# # This workflow runs the integration test suite on a schedule,
+# # parses the results, and sends a formatted summary to Slack.
+
+# name: Scheduled Integration Test Run & Report
+
+# on:
+#   schedule:
+#     # Runs every day at 9:55 AM IST (04:25 UTC).
+#     # You can adjust the cron schedule as needed.
+#     - cron: '25 4 * * *'
+#   workflow_dispatch: # Allows manual triggering of the workflow from the Actions tab.
+
+# jobs:
+#   run_and_report:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Run Integration Tests
+#         id: api_call
+#         run: |
+#           # Make the API request to your Lambda test runner and store the response.
+#           # The --fail flag will cause the step to fail if the HTTP status code is not 2xx.
+#           API_RESPONSE=$(curl --fail -s -X GET \
+#             "https://jjfc50fwgh.execute-api.eu-north-1.amazonaws.com/default/test/testBackendApi?service=service-interview" \
+#             -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InQyMF93dGFCLTMyeDNkc05makx3TSJ9.eyJpc3MiOiJodHRwczovL3BhbmVsaXN0cy1kZXYudXMuYXV0aDAuY29tLyIsInN1YiI6ImVtYWlsfDY4NTEwY2U1NTRhZGM3NzI1Y2FhODAxYSIsImF1ZCI6WyJwYW5lbGlzdHMtZGV2IiwiaHR0cHM6Ly9wYW5lbGlzdHMtZGV2LnVzLmF1dGgwLmNvbS91c2VyaW5mbyJdLCJpYXQiOjE3NTAyNDMzMjMsImV4cCI6MTc1MDMyOTcyMywic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBlbWFpbCIsImF6cCI6IlZXUFNCcmZ0bUgxV1FJZE9lWWJuQjZrTzd5c2x1VWM0In0.A8Zkd2dPO6vr8Df3pvz8Kuo0KffgWRy7B6DOCJRUXvDZabtJYTUKkCxsJSCGnrpEaD2LhnXvNNwrZF8d0fLJYuf8JkdsZatZiOSdr1xwzbZ9HJGYJ22uwYtxO0FoOEHGIOgTYQQDVeBDDqBMKkm0BdLizORhi3a2WgJGdWXXO1GbtoRtT_dsLgkT8Vu4t_-k7Dcydw4N0sRNkOi5Ugc_4FTLjxpP4CV-rtkQnPSaVrC4IN0Z56Mo9goAJi_V0Pim4oUsTkaikBqmZe3h2JJpQTxTPR_YQRWMHkNrb4qf6JIEuHEiWg0DORLFXwvyoSsXabDU_2dXl-XyRnXnMdj-0ug")
+
+#           # Output the response for the next step.
+#           echo "API_RESPONSE<<EOF" >> $GITHUB_OUTPUT
+#           echo "$API_RESPONSE" >> $GITHUB_OUTPUT
+#           echo "EOF" >> $GITHUB_OUTPUT
+
+#       - name: Parse Results and Prepare Report
+#         id: report_prep
+#         run: |
+#           # Get the JSON response from the previous step.
+#           JSON_RESPONSE='${{ steps.api_call.outputs.API_RESPONSE }}'
+
+#           # Use jq to parse the JSON and determine the status.
+#           SUCCESS=$(echo "$JSON_RESPONSE" | jq -r '.success')
+#           TOTAL_TESTS=$(echo "$JSON_RESPONSE" | jq '.results | length')
+#           PASSED_TESTS=$(echo "$JSON_RESPONSE" | jq '[.results[] | select(.pass == true)] | length')
+#           FAILED_TESTS=$(echo "$JSON_RESPONSE" | jq '[.results[] | select(.pass == false)] | length')
+
+#           # Prepare the Slack message and color based on the success status.
+#           if [ "$SUCCESS" = "true" ]; then
+#             SLACK_COLOR="good"
+#             SLACK_TITLE="✅ Integration Tests Passed"
+#             SLACK_MESSAGE="All $TOTAL_TESTS tests passed successfully!"
+#           else
+#             SLACK_COLOR="danger"
+#             SLACK_TITLE="❌ Integration Tests Failed"
+#             # Get the names of the failed tests, formatted for Slack.
+#             FAILED_TEST_NAMES=$(echo "$JSON_RESPONSE" | jq -r '[.results[] | select(.pass == false) | .name] | .[]' | sed 's/^/• /')
+#             SLACK_MESSAGE="*Summary:* Passed: $PASSED_TESTS, Failed: $FAILED_TESTS, Total: $TOTAL_TESTS\n\n*Failed Tests:*\n\`\`\`\n$FAILED_TEST_NAMES\n\`\`\`"
+#           fi
+
+#           # Set the outputs for the next step.
+#           echo "SLACK_MESSAGE<<EOF" >> $GITHUB_OUTPUT
+#           echo -e "$SLACK_MESSAGE" >> $GITHUB_OUTPUT
+#           echo "EOF" >> $GITHUB_OUTPUT
+#           echo "SLACK_COLOR=$SLACK_COLOR" >> $GITHUB_OUTPUT
+#           echo "SLACK_TITLE=$SLACK_TITLE" >> $GITHUB_OUTPUT
+
+#       - name: Send Report to Slack
+#         uses: rtCamp/action-slack-notify@v2
+#         # This step will always run, so you get a notification even if the curl command fails.
+#         if: always()
+#         env:
+#           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+#           SLACK_CHANNEL: 'all-test-webhook' # Your desired Slack channel
+#           SLACK_USERNAME: 'Test Runner Bot'
+#           SLACK_ICON_EMOJI: ':robot_face:'
+#           SLACK_TITLE: ${{ steps.report_prep.outputs.SLACK_TITLE || 'Integration Test Run Status' }}
+#           SLACK_MESSAGE: ${{ steps.report_prep.outputs.SLACK_MESSAGE || 'Could not retrieve test results. Check the GitHub Actions run for details.' }}
+#           SLACK_COLOR: ${{ steps.report_prep.outputs.SLACK_COLOR || 'warning' }}
+
+
 # This workflow runs the integration test suite on a schedule,
 # parses the results, and sends a formatted summary to Slack.
 
@@ -21,7 +97,7 @@ jobs:
           # The --fail flag will cause the step to fail if the HTTP status code is not 2xx.
           API_RESPONSE=$(curl --fail -s -X GET \
             "https://jjfc50fwgh.execute-api.eu-north-1.amazonaws.com/default/test/testBackendApi?service=service-interview" \
-            -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InQyMF93dGFCLTMyeDNkc05makx3TSJ9.eyJpc3MiOiJodHRwczovL3BhbmVsaXN0cy1kZXYudXMuYXV0aDAuY29tLyIsInN1YiI6ImVtYWlsfDY4NTEwY2U1NTRhZGM3NzI1Y2FhODAxYSIsImF1ZCI6WyJwYW5lbGlzdHMtZGV2IiwiaHR0cHM6Ly9wYW5lbGlzdHMtZGV2LnVzLmF1dGgwLmNvbS91c2VyaW5mbyJdLCJpYXQiOjE3NTAyNDMzMjMsImV4cCI6MTc1MDMyOTcyMywic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBlbWFpbCIsImF6cCI6IlZXUFNCcmZ0bUgxV1FJZE9lWWJuQjZrTzd5c2x1VWM0In0.A8Zkd2dPO6vr8Df3pvz8Kuo0KffgWRy7B6DOCJRUXvDZabtJYTUKkCxsJSCGnrpEaD2LhnXvNNwrZF8d0fLJYuf8JkdsZatZiOSdr1xwzbZ9HJGYJ22uwYtxO0FoOEHGIOgTYQQDVeBDDqBMKkm0BdLizORhi3a2WgJGdWXXO1GbtoRtT_dsLgkT8Vu4t_-k7Dcydw4N0sRNkOi5Ugc_4FTLjxpP4CV-rtkQnPSaVrC4IN0Z56Mo9goAJi_V0Pim4oUsTkaikBqmZe3h2JJpQTxTPR_YQRWMHkNrb4qf6JIEuHEiWg0DORLFXwvyoSsXabDU_2dXl-XyRnXnMdj-0ug")
+            -H "Authorization: Bearer ${{ secrets.AUTH_TOKEN }}")
 
           # Output the response for the next step.
           echo "API_RESPONSE<<EOF" >> $GITHUB_OUTPUT
